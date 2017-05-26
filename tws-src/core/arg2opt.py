@@ -8,28 +8,36 @@
 # (C) 2017, Ricyn Lee 李锐森
 
 ## Codes begin ################################################################
-import sys, re
+import sys
 
 CMD_USAGE = \
 '''TwoWaySync命令行用法
+
 tws --left $LEFT_FOLDER     # 左侧文件夹,必选选项
     --right $RIGHT_FOLDER   # 右侧文件夹,必选选项
     --report $REPORT_FILE   # 报告文件路径,
                             # 若不指定或留空,报告到屏幕
     --source=$SRC           # 同步源: l|left|r|right|m|mutual,
-                            # 若不指定,则只生成比对报告'''
+                            # 若不指定,则只生成比对报告
+    --report-as-result      # 使用已有的报告文件,
+                            # 作为文件夹比对结果
+
+[!] 注意:命令行参数区分大小写'''
+
 ## 全局量
 class OPT:
-    left      = ''
-    right     = ''
-    operation = 0  # 0:报告; 1:左到右; 2:右到左; 3:更新同步, Optional
-    report    = '' # 报告文件路径, Optional
+    left          = ''
+    right         = ''
+    operation     = 0  # 0:报告; 1:左到右; 2:右到左; 3:更新同步, Optional
+    report        = '' # 报告文件路径, Optional
+    report_as_cmp = False # Optional
+
 ## 函数
 # 获取选项
 def getoa():
     global OPT
     getopt = lambda paramstr: paramstr[paramstr.find('=')+1:]
-    match  = lambda pattern, arg: True if re.match(pattern,arg) else False
+    match  = lambda pattern, arg: True if arg.startswith(pattern) else False
     try:
         for i in range(1,len(sys.argv)):
             arg=sys.argv[i]
@@ -41,14 +49,16 @@ def getoa():
                 OPT.report=sys.argv[i+1]
             elif match('--source=',arg):
                 src=getopt(arg)
-                if src.lower() in ('l','left'):
+                if src in ('l','left'):
                     OPT.operation=1
-                elif src.lower() in ('r','right'):
+                elif src in ('r','right'):
                     OPT.operation=2
-                elif src.lower() in ('m','mutual'):
+                elif src in ('m','mutual'):
                     OPT.operation=3
                 else: # 参数非法
                     return False
+            elif match('--report-as-result',arg):
+                OPT.report_as_result=True
             elif match('--',arg): # 出现非法选项
                 return False
     except: # 解析出错

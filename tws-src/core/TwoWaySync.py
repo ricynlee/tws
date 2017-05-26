@@ -36,11 +36,15 @@ def cmp_iter(dc): # type(dc) is dircmp
         log('[X] 无法访问 %s' % rmbase(OPT.left,dc.left))
 
 def compare(left_root,right_root):
+    LEFT_ONLY_ITEMS=[]
+    RIGHT_ONLY_ITEMS=[]
+    DIFFERENT_FILES=[]
     left_root  += (os.sep if left_root[-1]!=os.sep else "")
     right_root += (os.sep if right_root[-1]!=os.sep else "")
     cmp_iter(dircmp(left_root,right_root))
 
 def report(file=''): # 文件为空则报告到屏幕
+    # Report file should NOT be manually modified
     global  LEFT_ONLY_ITEMS, RIGHT_ONLY_ITEMS, DIFFERENT_FILES
     try:
         if file:
@@ -50,10 +54,12 @@ def report(file=''): # 文件为空则报告到屏幕
     except:
         pass # 打开报告文件出错,错误处理尚未实现
         log('[X] 无法访问报告文件')
+        return
+
     # 报告内容
-    report_timestamp = lambda: '%s' % time.ctime()
+    report_timestamp = lambda: '%s' % time.strftime("%Y-%m-%d,%H:%M:%S",time.localtime())
     report_write = lambda s: report_file.write('%s' % s.decode('gbk').encode('utf-8'))
-    
+
     report_write('REPORT@%s\n' % report_timestamp())
     report_write('LEFT=%s\n' % OPT.left)
     report_write('RIGHT=%s\n' % OPT.right)
@@ -79,18 +85,71 @@ def report(file=''): # 文件为空则报告到屏幕
     if report_file and report_file!=sys.stdout:
         report_file.close()
 
+def read_report(file):
+    # Report file should NOT be manually modified
+    global  LEFT_ONLY_ITEMS, RIGHT_ONLY_ITEMS, DIFFERENT_FILES
+    try:
+        report_file=open(file,'r')
+    except:
+        pass # 打开报告文件出错,错误处理尚未实现
+        log('[X] 无法访问报告文件')
+        return
+
+    # 报告内容
+    report_timestamp = int(time.mktime(time.strptime(f.readline().replace('REPORT@','',1),"%Y-%m-%d,%H:%M:%S")))
+    report_left = report_file.readline().replace('LEFT=','',1)
+    report_right = report_file.readline().replace('RIGHT=','',1)
+
+    LEFT_ONLY_ITEMS=[]
+    RIGHT_ONLY_ITEMS=[]
+    DIFFERENT_FILES=[]
+
+    report_file.readline() # 'LEFT-ONLY ITEMS:'
+
+    while(True): # left-only
+        line = report_file.readline()
+        if line=='RIGHT-ONLY ITEMS:':
+            break
+        LEFT_ONLY_ITEMS+=line.split("|")[0]
+
+    while(True): # right-only
+        line = report_file.readline()
+        if line=='DIFFERENT FILES:':
+            break
+        RIGHT_ONLY_ITEMS+=line.split("|")[0]
+
+    while(True): # different
+        line = report_file.readline()
+        if not line:
+            break
+        DIFFERENT_FILES+=line.split("|")[0]
+
+    return report_timestamp,report_left,report_right
+
 ## 主程序
 log_begin()
 
 if not getoa():
     log('[X] 命令行错误')
     print CMD_USAGE
-    log_end()
-    exit()
+    log_end(); exit()
 
 log('[i] 开始比对 左侧:%s 右侧:%s' % (OPT.left,OPT.right))
-compare(OPT.left,OPT.right)
-log('[i] 完成比对 生成差异报告')
+if OPT.report_as_cmp:
+    try:
+        report_timestamp,report_left,report_right=read_report(OPT.report)
+        # 此处不验证报告文件的内容
+        log('[i] 已经读取报告文件作为文件夹比对结果')
+    except:
+        log('[X] 无法使用报告文件作为文件夹比对结果')
+        log_end(); exit()
+else:
+    try:
+        compare(OPT.left,OPT.right)
+        log('[i] 完成比对 生成差异报告')
+    except:
+        log('[X] 文件夹比对失败')
+        log_end(); exit()
 
 report(OPT.report)
 
