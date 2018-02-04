@@ -1,0 +1,4 @@
+tws-bin-amd64/
+*.OBJ
+*.obj
+*.exe
